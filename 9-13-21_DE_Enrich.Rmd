@@ -1,5 +1,5 @@
 ---
-title: "9-13-21 DE and Enrichment"
+title: "Differential Gene Expression and Enrichment Analysis"
 author: Jade Sha
 date: Sep 13, 2021
 output: html_document
