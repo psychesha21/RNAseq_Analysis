@@ -1,0 +1,121 @@
+---
+title: "Pathway_9-12-21"
+output: html_document
+---
+
+```{r loadfiles_and_packages, message=FALSE}
+
+library(readr)
+library(dplyr)
+library(tibble)
+library(edgeR)
+library(readr)
+library(clusterProfiler)
+library(scater)
+library(bbcRNA)
+orgdb <- "org.Hs.eg.db" 
+library(orgdb, character.only=TRUE) # load the org.db for your organism
+library(AnnotationDbi)
+library(tibble)
+library(DOSE)
+library(msigdbr)
+library("pathview")
+
+load("./allgenes.Rdata")
+load("./genelistfiles.Rdata")
+load("./basemodel.Rdata")
+
+```
+
+# Pathway analysis
+``` {r make_genelist}
+all_tags <- topTags(res1, n = Inf) %>% as.data.frame()
+genList1 <- all_tags$logFC
+head(genList1)
+names(genList1) <- all_tags$entrez
+head(genList1)
+genList1 = genList1[which(!is.na(names(genList1)))]
+genList1 = genList1[!duplicated(names(genList1))]
+genList1 <- sort(genList1, decreasing = T)
+head(genList1)
+save(genList1, file = "./genList1.Rdata")
+```
+
+# GSEA figures
+```{r GSEA, message=FALSE, warning=FALSE}
+
+## category Hallmark genes
+Hall <- msigdbr(species = "Homo sapiens", category = "H") %>% 
+  dplyr::select(gs_name, entrez_gene)
+head(Hall)
+
+emhall <- GSEA(genList1, TERM2GENE = Hall )
+
+gseaHALL_export <-emhall %>% as.data.frame()
+head(emhall, 10)
+write_tsv(gseaHALL_export, paste0("gsea","/","gseaHALL_export.tsv"))
+
+## dotplot
+dotplot(emhall, showCategory=30)+ggtitle("dotplot for GSEA")
+
+## cnetplot
+edox <- setReadable(emhall, 'org.Hs.eg.db', 'ENTREZID')
+p1 <- cnetplot(edox, node_label="category", 
+               cex_label_category = 1.2)
+p2 <- cnetplot(edox, node_label="gene", 
+               cex_label_gene = 0.8) 
+p1
+p2
+
+```
+
+# GO analysis
+```{r GO_analysi}
+head(genList1)
+gene <- names(genList1)[abs(genList1) > 2]
+head(gene)
+ego <- enrichGO(gene          = gene,
+                universe      = names(genList1),
+                OrgDb         = 'org.Hs.eg.db',
+                ont           = "ALL",
+                pAdjustMethod = "BH",
+                pvalueCutoff  = 0.05,
+                qvalueCutoff  = 0.1,
+                readable      = TRUE)
+head(ego)
+write_tsv(as.data.frame(ego), paste0("DE", "/","GOenchrich.tsv"))
+
+
+```
+
+# Kegg analysis
+
+```{r Kegg, message=FALSE, warning=FALSE}
+kk <- gseKEGG(geneList = genList1,
+              organism = 'hsa',
+              minGSSize = 10, 
+              maxGSSize = 1000,
+              pvalueCutoff = 1.0,
+              eps = 0, 
+              verbose = F)
+
+head(kk)
+write_tsv(as.data.frame(kk), paste0("DE", "/","Kegg.tsv"))
+
+hsa04080 <- pathview(gene.data  = genList1,
+                     pathway.id = "hsa04080",
+                     species    = "hsa",
+                     limit      = list(gene=max(abs(genList1)), cpd=1))
+```
+
+
+
+
+
+
+
+
+
+
+
+
